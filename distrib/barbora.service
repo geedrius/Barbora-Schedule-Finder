@@ -1,0 +1,17 @@
+[Unit]
+Description=Barbora container
+Wants=syslog.service
+# When systemd stops or restarts the containers.service, the action is propagated to this unit
+PartOf=containers.service
+# Start this unit after the containers.service start
+After=containers.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/podman start --attach barbora
+ExecStop=/usr/bin/podman stop --timeout 30 barbora
+
+[Install]
+# This unit should start when containers.service is starting
+WantedBy=containers.service
+
