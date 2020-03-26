@@ -11,13 +11,13 @@ defmodule Barbora.Client do
   @spec client({String.t(), String.t()}) :: Tesla.Client.t() | {:error, integer}
   def client(auth) do
     middleware = [
-      {Tesla.Middleware.BaseUrl, "https://www.barbora.lt"},
+      {Tesla.Middleware.BaseUrl, "https://barbora.lt"},
       Tesla.Middleware.FormUrlencoded,
       Tesla.Middleware.DecodeJson,
       # fun fact: this header must be set :D which decodes to: apikey:SecretKey
       {Tesla.Middleware.Headers, [
         {"Authorization", "Basic YXBpa2V5OlNlY3JldEtleQ=="},
-        {"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36}"},
+        {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0"},
       ]}
     ]
 
