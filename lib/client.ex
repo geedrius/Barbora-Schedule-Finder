@@ -2,10 +2,36 @@ defmodule Barbora.Client do
   use Tesla
   require Logger
 
-#  plug Tesla.Middleware.Logger
+  @headers [
+    # fun fact: this header must be set :D which decodes to: apikey:SecretKey
+    {"Authorization", "Basic YXBpa2V5OlNlY3JldEtleQ=="},
+    {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0"}
+  ]
+
+  #  plug Tesla.Middleware.Logger
 
   def get_deliveries(client) do
-    get!(client, "/api/eshop/v1/cart/deliveries")
+    with %Tesla.Env{status: 200, body: body} <- get!(client, "/api/eshop/v1/cart/deliveries"),
+         do: body
+  end
+
+  @spec reserve_delivery(%Tesla.Client{}, {String.t(), String.t()}) ::
+          :ok | {:err, :already_taken} | {:err, :unknown}
+  def reserve_delivery(client, {hourId, dayId}) do
+    with %Tesla.Env{body: %{"deliveries" => _deliveries}} <-
+           post!(client, "/api/eshop/v1/cart/ReserveDeliveryTimeSlot", %{
+             dayId: dayId,
+             hourId: hourId
+           }) do
+      :ok
+    else
+      %Tesla.Env{body: %{"messages" => %{"error" => [%{"Id" => "time_reservation_needed"} | _]}}} ->
+        {:err, :already_taken}
+
+      err ->
+        Logger.error("Reservation request failed #{inspect(err)}")
+        {:err, :unknown}
+    end
   end
 
   @spec client({String.t(), String.t()}) :: Tesla.Client.t() | {:error, integer}
@@ -14,11 +40,7 @@ defmodule Barbora.Client do
       {Tesla.Middleware.BaseUrl, "https://barbora.lt"},
       Tesla.Middleware.FormUrlencoded,
       Tesla.Middleware.DecodeJson,
-      # fun fact: this header must be set :D which decodes to: apikey:SecretKey
-      {Tesla.Middleware.Headers, [
-        {"Authorization", "Basic YXBpa2V5OlNlY3JldEtleQ=="},
-        {"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0"},
-      ]}
+      {Tesla.Middleware.Headers, @headers}
     ]
 
     client = Tesla.client(middleware)
@@ -46,7 +68,7 @@ defmodule Barbora.Client do
              password: password,
              rememberMe: true
            },
-             headers: [{"Cookie", cookie}]
+           headers: [{"Cookie", cookie}]
          ) do
       %Tesla.Env{status: 200, headers: headers} ->
         {:ok, generate_cookie([{"set-cookie", "region=barbora.lt"} | headers])}
