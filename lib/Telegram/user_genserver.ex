@@ -61,13 +61,32 @@ defmodule Barbora.Telegram.UserGenServer do
   def handle_cast({:scan}, state) do
     Logger.debug("Scanning for deliveries for chat: #{state.chat_id}")
 
+    # jei nera ryšio klaidų, tikrinam vietas kas 5 minutes arba kaip nurodyta
+    days_from_today =
+      case System.get_env("FILTER_MAX_DAYS") do
+        nil -> 3
+        value -> String.to_integer(value)
+      end
+
+    # domina tik šios dienos ir kitos dienos pristatymai
+    dt_from = DateTime.utc_now |> DateTime.to_date
+    dt_range = Date.range(dt_from, dt_from |> Date.add(days_from_today))
+    fast_days = Enum.map(dt_range, fn x -> Date.to_iso8601(x) end)
+
     response = state.client
     |> Barbora.Client.get_deliveries()
-    |> Barbora.Deliveries.filter_available_deliveries()
+    |> Barbora.Deliveries.filter_fast_deliveries(fast_days)
     |> Barbora.Telegram.User.notify_timeslots(state.chat_id)
 
+    # jei nera ryšio klaidų, tikrinam vietas kas 5 minutes arba kaip nurodyta
+    poll_in_minutes =
+      case System.get_env("SCAN_INVERVAL_MINUTES") do
+        nil -> 5
+        value -> String.to_integer(value)
+      end
+
     timeout = case response do
-      {:ok, _} -> 5 * @scan_interval
+      {:ok, _} -> poll_in_minutes * @scan_interval
       _ -> @scan_interval
     end
 
